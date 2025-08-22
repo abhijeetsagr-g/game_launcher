@@ -1,14 +1,17 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:game_launcher/features/games.dart';
+import 'package:provider/provider.dart';
 
 void showAddGameDialog(BuildContext context) {
   showDialog(
     context: context,
     builder: (context) {
-      return Center(
+      return Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: 400),
-          child: AddGame(),
+          constraints: const BoxConstraints(maxWidth: 450),
+          child: const AddGame(),
         ),
       );
     },
@@ -23,34 +26,61 @@ class AddGame extends StatefulWidget {
 }
 
 class _AddGameState extends State<AddGame> {
+  final TextEditingController titleController = TextEditingController();
+  final TextEditingController commandController = TextEditingController();
+  String savePath = "";
   File? _iconFile;
 
   Future<void> _pickFile() async {
-    final result = await Process.run('zenity', [
-      '--file-selection',
-      '--file-filter=*.png',
-    ]);
-    if (result.exitCode == 0) {
-      final path = (result.stdout as String).trim();
-      if (path.isNotEmpty) {
-        setState(() {
-          _iconFile = File(path);
-        });
+    try {
+      final result = await Process.run('zenity', [
+        '--file-selection',
+        '--file-filter=*.png',
+      ]);
+
+      if (result.exitCode == 0) {
+        final path = (result.stdout as String).trim();
+        if (path.isNotEmpty) {
+          setState(() {
+            _iconFile = File(path);
+            savePath = path;
+          });
+        }
       }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Zenity not found. Please install it.")),
+      );
     }
+  }
+
+  void onSave() {
+    if (titleController.text.isEmpty || commandController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please fill in all fields")),
+      );
+      return;
+    }
+
+    final gameList = Provider.of<GameList>(context, listen: false);
+    Games newGame = Games(
+      title: titleController.text,
+      command: commandController.text,
+      path: savePath,
+      id: gameList.gamesList.length + 1,
+    );
+
+    gameList.addGame(newGame);
+    Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      color: Colors.white,
-      elevation: 6,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(30, 50, 30, 50),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(30, 40, 30, 30),
+      child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
-
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Heading
@@ -59,67 +89,62 @@ class _AddGameState extends State<AddGame> {
               style: TextStyle(
                 fontFamily: "Inter",
                 fontWeight: FontWeight.bold,
-                fontSize: 20,
+                fontSize: 22,
               ),
             ),
 
-            // Game title
             const SizedBox(height: 20),
+
+            // Game title
             const Text(
               "Game Title",
               style: TextStyle(
                 fontFamily: "Inter",
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w600,
               ),
             ),
-            const SizedBox(height: 10),
-            const SizedBox(
-              width: 450,
-              child: TextField(
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(
-                    borderSide: BorderSide(width: 0.5),
-                  ),
-                  filled: true,
-                  fillColor: Colors.white38,
-                  hintText: "Enter game title",
-                ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: titleController,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                filled: true,
+                hintText: "Enter game title",
               ),
             ),
 
-            // Command
             const SizedBox(height: 20),
+
+            // Command
             const Text(
               "Executable Command",
               style: TextStyle(
+                fontSize: 13,
                 fontFamily: "Inter",
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w600,
               ),
             ),
-            const SizedBox(height: 10),
-            const SizedBox(
-              width: 450,
-              child: TextField(
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(),
-                  filled: true,
-                  fillColor: Colors.white,
-                  hintText: "echo 'command'",
-                ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: commandController,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                filled: true,
+                hintText: "echo 'command'",
               ),
             ),
 
-            // Icon upload
             const SizedBox(height: 20),
+
+            // Game Icon
             const Text(
               "Game Icon",
               style: TextStyle(
                 fontFamily: "Inter",
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(height: 10),
-
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -149,36 +174,24 @@ class _AddGameState extends State<AddGame> {
               ],
             ),
 
-            SizedBox(height: 70),
+            const SizedBox(height: 30),
+
+            // Action buttons
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    elevation: 2,
-                    backgroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                  ),
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                  child: Text("Cancel", style: TextStyle(color: Colors.black)),
+                OutlinedButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Cancel"),
                 ),
-                SizedBox(width: 20),
+                const SizedBox(width: 16),
                 ElevatedButton(
+                  onPressed: onSave,
                   style: ElevatedButton.styleFrom(
-                    elevation: 2,
                     backgroundColor: Colors.blueAccent,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(5),
-                    ),
+                    foregroundColor: Colors.white,
                   ),
-                  onPressed: () {
-                    // Saving functions
-                  },
-                  child: Text("Save", style: TextStyle(color: Colors.black)),
+                  child: const Text("Save"),
                 ),
               ],
             ),

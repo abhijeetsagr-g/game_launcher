@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:game_launcher/features/games.dart';
 import 'package:game_launcher/screens/add_game.dart';
+import 'package:game_launcher/screens/all_games.dart';
+import 'package:provider/provider.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -11,8 +14,15 @@ class Home extends StatefulWidget {
 class _HomeState extends State<Home> {
   int _currentIndex = 0;
 
+  @override
+  void initState() {
+    final gameList = Provider.of<GameList>(context, listen: false);
+    gameList.loadList();
+    super.initState();
+  }
+
   final pages = [
-    Center(child: Text("All games")),
+    AllGames(),
     Center(child: Text("Favourites")),
     Center(child: Text("Recently Played")),
   ];
